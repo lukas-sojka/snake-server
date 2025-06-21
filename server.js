@@ -100,7 +100,6 @@ function broadcast(message) {
 
 // Game loop
 function gameLoop() {
-  console.log('🔄 Game loop tick - Players:', gameState.snakes.size, 'Food:', gameState.food.size);
   let gameStateChanged = false;
   // Move snakes
   gameState.snakes.forEach((snake, playerId) => {
@@ -163,7 +162,7 @@ function gameLoop() {
       }
     });
   } else {
-    console.log('⏸️  No game state changes, skipping broadcast');
+    //console.log('⏸️  No game state changes, skipping broadcast');
   }
 }
 
