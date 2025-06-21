@@ -13,6 +13,33 @@ const gameState = {
   gameArea: { width: 40, height: 30 }
 };
 
+// Predefined unique colors for players
+const PLAYER_COLORS = [
+  '#ff6b6b', // Red
+  '#4ecdc4', // Teal
+  '#45b7d1', // Blue
+  '#96ceb4', // Green
+  '#ffeaa7', // Yellow
+  '#ddd6fe', // Purple
+  '#fd79a8', // Pink
+  '#fdcb6e', // Orange
+  '#6c5ce7', // Violet
+  '#a29bfe', // Light Purple
+  '#fd79a8', // Rose
+  '#00b894', // Emerald
+  '#e17055', // Coral
+  '#81ecec', // Cyan
+  '#fab1a0', // Peach
+  '#00cec9', // Turquoise
+  '#55a3ff', // Light Blue
+  '#ff7675', // Light Red
+  '#74b9ff', // Sky Blue
+  '#fd79a8'  // Magenta
+];
+
+// Track used colors
+const usedColors = new Set();
+
 // Fruit types with different rarities and point values
 const FRUIT_TYPES = {
   apple: { emoji: '🍎', color: '#ff4444', points: 1, rarity: 0.6, name: 'Apple' },
@@ -31,11 +58,9 @@ function getRandomPosition() {
     y: Math.floor(Math.random() * gameState.gameArea.height)
   };
 }
-
 function isObstacleAt(pos) {
   return Array.from(gameState.obstacles.values()).some(obs => obs.x === pos.x && obs.y === pos.y);
 }
-
 function isPositionOccupied(pos) {
   // Check snakes
   for (let snake of gameState.snakes.values()) {
@@ -46,7 +71,6 @@ function isPositionOccupied(pos) {
   // Check obstacles
   return isObstacleAt(pos);
 }
-
 function selectFruitType() {
   const random = Math.random();
   let cumulativeChance = 0;
@@ -84,7 +108,6 @@ function generateObstacles() {
 
   console.log(`✅ Generated ${generated} obstacles`);
 }
-
 function generateFood() {
   const maxAttempts = 30;
   let attempts = 0;
@@ -113,7 +136,6 @@ function generateFood() {
 
   console.log(`🍎 Generated ${foodGenerated} food items, total: ${gameState.food.size}`);
 }
-
 function broadcast(message) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -121,14 +143,11 @@ function broadcast(message) {
     }
   });
 }
-
 function gameLoop() {
   let gameStateChanged = false;
-
   // Move snakes
   gameState.snakes.forEach((snake) => {
     if (snake.body.length === 0) return;
-
     const head = snake.body[0];
     const newHead = {
       x: head.x + snake.direction.x,
@@ -174,7 +193,6 @@ function gameLoop() {
         }
       }
     });
-
     if (!ateFood) {
       snake.body.pop();
     }
@@ -206,40 +224,59 @@ generateFood();
 // Start game loop
 const gameInterval = setInterval(gameLoop, 150);
 
+// New functions for color management
+function getUniqueColor() {
+  // Find the first available color
+  for (const color of PLAYER_COLORS) {
+    if (!usedColors.has(color)) {
+      usedColors.add(color);
+      return color;
+    }
+  }
+
+  // If all predefined colors are used, generate a random one
+  const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+  usedColors.add(randomColor);
+  return randomColor;
+}
+
+function releaseColor(color) {
+  usedColors.delete(color);
+}
 // WebSocket handling
 wss.on('connection', (ws) => {
   console.log('🔗 New client connected');
-
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
-
       switch (data.type) {
         case 'join':
           const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           const startPosition = getRandomPosition();
+          const uniqueColor = getUniqueColor();
           const snake = {
             id: playerId,
             name: data.name || 'Anonymous',
-            color: data.color || '#ff6b6b',
+            color: uniqueColor,
             body: [startPosition],
             direction: { x: 0, y: 1 },
             score: 1
           };
           gameState.snakes.set(playerId, snake);
           ws.playerId = playerId;
+          ws.playerColor = uniqueColor;
+
+          console.log(`🎨 Assigned color ${uniqueColor} to player ${snake.name}`);
 
           ws.send(JSON.stringify({
             type: 'playerJoined',
             playerId: playerId
           }));
-
           broadcast({
             type: 'playerCount',
             count: gameState.snakes.size
           });
           break;
-
         case 'direction':
           if (ws.playerId && gameState.snakes.has(ws.playerId)) {
             const snake = gameState.snakes.get(ws.playerId);
@@ -269,6 +306,10 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     console.log('👋 Client disconnected');
     if (ws.playerId) {
+      if (ws.playerColor) {
+        releaseColor(ws.playerColor);
+        console.log(`🎨 Released color ${ws.playerColor}`);
+      }
       gameState.snakes.delete(ws.playerId);
       broadcast({
         type: 'playerCount',
@@ -293,7 +334,6 @@ server.on('request', (req, res) => {
     res.end();
     return;
   }
-
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
