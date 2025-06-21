@@ -103,25 +103,29 @@ function generateObstacles() {
   const obstacleCount = 15; // Number of obstacles
   let generated = 0;
 
-  for (let i = 0; i < obstacleCount; i++) {
-    const pos = getRandomPosition();
+  try {
+    for (let i = 0; i < obstacleCount; i++) {
+      const pos = getRandomPosition();
 
-    // Don't place obstacles too close to center (spawn area)
-    const centerX = Math.floor(gameState.gameArea.width / 2);
-    const centerY = Math.floor(gameState.gameArea.height / 2);
-    const distanceFromCenter = Math.abs(pos.x - centerX) + Math.abs(pos.y - centerY);
+      // Don't place obstacles too close to center (spawn area)
+      const centerX = Math.floor(gameState.gameArea.width / 2);
+      const centerY = Math.floor(gameState.gameArea.height / 2);
+      const distanceFromCenter = Math.abs(pos.x - centerX) + Math.abs(pos.y - centerY);
 
-    if (distanceFromCenter > 5 && !isPositionOccupied(pos) && !isObstacleAt(pos)) {
-      const obstacleId = `obstacle_${i}`;
-      gameState.obstacles.set(obstacleId, {
-        id: obstacleId,
-        x: pos.x,
-        y: pos.y,
-        type: 'rock' // Could add different obstacle types later
-      });
-      generated++;
-      console.log(`🧱 Obstacle placed at (${pos.x}, ${pos.y})`);
+      if (distanceFromCenter > 5 && !isPositionOccupied(pos) && !isObstacleAt(pos)) {
+        const obstacleId = `obstacle_${i}`;
+        gameState.obstacles.set(obstacleId, {
+          id: obstacleId,
+          x: pos.x,
+          y: pos.y,
+          type: 'rock' // Could add different obstacle types later
+        });
+        generated++;
+        console.log(`🧱 Obstacle placed at (${pos.x}, ${pos.y})`);
+      }
     }
+  } catch (error) {
+    console.error('❌ Error generating obstacles:', error);
   }
 
   console.log(`✅ Generated ${generated} obstacles`);
@@ -149,27 +153,31 @@ function generateFood() {
   let attempts = 0;
   let foodGenerated = 0;
 
-  while (gameState.food.size < 12 && attempts < maxAttempts) { // Increased food count
-    const pos = getRandomPosition();
+  try {
+    while (gameState.food.size < 12 && attempts < maxAttempts) { // Increased food count
+      const pos = getRandomPosition();
 
-    // Don't place food on snakes or obstacles
-    if (!isPositionOccupied(pos)) {
-      const fruitType = selectFruitType();
-      const foodId = `food_${Date.now()}_${Math.random()}`;
-      gameState.food.set(foodId, {
-        id: foodId,
-        x: pos.x,
-        y: pos.y,
-        type: fruitType.type,
-        emoji: fruitType.emoji,
-        color: fruitType.color,
-        points: fruitType.points,
-        name: fruitType.name
-      });
-      foodGenerated++;
-      console.log(`✅ ${fruitType.name} generated at (${pos.x}, ${pos.y}) - Points: ${fruitType.points}`);
+      // Don't place food on snakes or obstacles
+      if (!isPositionOccupied(pos)) {
+        const fruitType = selectFruitType();
+        const foodId = `food_${Date.now()}_${Math.random()}`;
+        gameState.food.set(foodId, {
+          id: foodId,
+          x: pos.x,
+          y: pos.y,
+          type: fruitType.type,
+          emoji: fruitType.emoji,
+          color: fruitType.color,
+          points: fruitType.points,
+          name: fruitType.name
+        });
+        foodGenerated++;
+        console.log(`✅ ${fruitType.name} generated at (${pos.x}, ${pos.y}) - Points: ${fruitType.points}`);
+      }
+      attempts++;
     }
-    attempts++;
+  } catch (error) {
+    console.error('❌ Error generating food:', error);
   }
 
   console.log(`🍎 Food generation complete: ${foodGenerated} new food items, total: ${gameState.food.size}`);
@@ -242,19 +250,24 @@ function gameLoop() {
     if (isObstacleAt(newHead)) {
       console.log(`💥 OBSTACLE HIT! Snake ${snake.name} hit obstacle at (${newHead.x},${newHead.y})`);
 
-      // Respawn snake at random position
-      const newPos = getRandomPosition();
-      let attempts = 0;
-      while (isPositionOccupied(newPos) && attempts < 20) {
-        newPos.x = Math.floor(Math.random() * gameState.gameArea.width);
-        newPos.y = Math.floor(Math.random() * gameState.gameArea.height);
-        attempts++;
-      }
+      try {
+        // Respawn snake at random position
+        let newPos = getRandomPosition();
+        let attempts = 0;
+        while (isPositionOccupied(newPos) && attempts < 20) {
+          newPos = getRandomPosition();
+          attempts++;
+        }
 
-      snake.body = [newPos];
-      snake.score = Math.max(1, Math.floor(snake.score * 0.7)); // Lose 30% of score
-      console.log(`♻️  Snake ${snake.name} respawned at (${newPos.x},${newPos.y}) with score ${snake.score}`);
-      gameStateChanged = true;
+        snake.body = [newPos];
+        snake.score = Math.max(1, Math.floor(snake.score * 0.7)); // Lose 30% of score
+        console.log(`♻️  Snake ${snake.name} respawned at (${newPos.x},${newPos.y}) with score ${snake.score}`);
+        gameStateChanged = true;
+      } catch (error) {
+        console.error('❌ Error respawning snake:', error);
+        // Fallback: place at center
+        snake.body = [{ x: Math.floor(gameState.gameArea.width / 2), y: Math.floor(gameState.gameArea.height / 2) }];
+      }
       return; // Skip rest of movement logic
     }
 
